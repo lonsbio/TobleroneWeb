@@ -29,7 +29,7 @@ jobs:
       run: cargo build --verbose --target wasm32-unknown-emscripten --release
       
     - name: Gather target outputs 
-      run: mkdir biowasm && cp ./target/wasm32-unknown-emscripten/release/toblerone.js biowasm && cp ./target/wasm32-unknown-emscripten/release/toblerone.wasm biowasm && cp ./target/wasm32-unknown-emscripten/release/deps/toblerone.data biowasm
+      run: mkdir biowasm && cp ./target/wasm32-unknown-emscripten/release/tinyt.js biowasm && cp ./target/wasm32-unknown-emscripten/release/tinyt.wasm biowasm && cp ./target/wasm32-unknown-emscripten/release/deps/tinyt.data biowasm
     - name: Verify  biowasm
       run: ls -Rl biowasm
     - uses: softprops/action-gh-release@v1
