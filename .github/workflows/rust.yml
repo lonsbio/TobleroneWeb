@@ -1,84 +1,49 @@
-name: Rust Build
+name: Combile Rust to WebAssembly
 
-on: [push]
+on: push
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
   build:
+    name: Build Rust
     runs-on: ubuntu-latest
-    # Use a container with GLIBC 2.17 https://kobzol.github.io/rust/ci/2021/05/07/building-rust-binaries-in-ci-that-work-with-older-glibc.html#solution
-    container: quay.io/pypa/manylinux2014_x86_64
     steps:
-      - name: Show GLIBC
-        run: ldd --version
-      - name: Checkout
-        uses: actions/checkout@v1
-      - name: Install latest rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          default: true
-          override: true
+    - uses: mymindstorm/setup-emsdk@v13
+    - name: Verify
+      run: emcc -v
 
-      - name: Build
-        run: cargo build --all --release && strip target/release/tinyt && mv target/release/tinyt target/release/tinyt_amd64 && chmod +x target/release/tinyt_amd64
+    - name: Update Rust
+      run: rustup update beta && rustup default beta
+    - name: Verify Rust
+      run: rustc --version
 
-      - name: Release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: |
-            target/release/tinyt_amd64
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Add emscripten to rustc
+      run: rustup target add  wasm32-unknown-emscripten
+      
+    - uses: actions/checkout@v3
+    - name: Verify ls 
+      run: ls -R 
+    - name: Build
+      run: cargo build --verbose --target wasm32-unknown-emscripten --release
+      
+    - name: Gather target outputs 
+      run: mkdir biowasm && cp ./target/wasm32-unknown-emscripten/release/toblerone.js biowasm && cp ./target/wasm32-unknown-emscripten/release/toblerone.wasm biowasm && cp ./target/wasm32-unknown-emscripten/release/deps/toblerone.data biowasm
+    - name: Verify  biowasm
+      run: ls -Rl biowasm
+    - uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+       files: biowasm/*
+      env:
+       GITHUB_TOKEN: ${{ secrets.RUST_DEPLOY_KEY }}
 
-  build-win:
-    runs-on: windows-latest
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v1
-
-      - name: Install latest rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          default: true
-          override: true
-
-      - name: Build
-        run: cargo build --all --release
-
-      - name: Release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: target/release/tinyt.exe
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build-mac:
-    runs-on: macos-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v1
-
-      - name: Install latest rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: x86_64-apple-darwin
-          default: true
-          override: true
-
-      - name: Build for mac
-        run: cargo build --all --release && strip target/release/tinyt && mv target/release/tinyt target/release/tinyt_macos && chmod +x target/release/tinyt_macos
-
-      - name: Release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: |
-            target/release/tinyt_macos
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Run tests (TODO)
+      run: echo cargo test --verbose
+    - name: Invoke workflow to build page with latest release 
+      uses: benc-uk/workflow-dispatch@v1
+      with:
+        workflow: static.yml
+  
