@@ -1,0 +1,21 @@
+{
+  "name": "tobleroneweb",
+  "version": "1.0.0",
+  "description": "![Toblerone](img/logo.png) # Toblerone",
+  "main": "coi-serviceworker.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+     "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "vite": "^7.1.9"
+  },
+  "dependencies": {
+    "@biowasm/aioli": "^3.2.1"
+  }
+}
