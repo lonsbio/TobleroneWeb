@@ -6,7 +6,7 @@ async function boot() {
     console.warn("Page is not crossOriginIsolated; threads may be unavailable.");
   }
 
-  const a = await Aioli();
+  const a = await new Aioli();
   // e.g., list tools or run a simple command if configured in your setup
   // const res = await a.exec("echo Hello from Aioli");
   // document.getElementById("app").textContent = res.stdout || "Ready";
