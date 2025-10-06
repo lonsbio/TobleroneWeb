@@ -1,9 +1,17 @@
 <script>
-  if (typeof window !== "undefined" && window.crossOriginIsolated !== true) {
-    if ('serviceWorker' in navigator && location.protocol === 'https:') {
-      navigator.serviceWorker.register('/TobleroneWeb/coi-serviceworker.js');
-    }
+(async () => {
+  if (location.protocol === 'https:' && 'serviceWorker' in navigator && !crossOriginIsolated) {
+    // Register with the correct scope. On GitHub Pages (user/REPO), sw must be under that base path.
+    const base = document.currentScript?.src ? new URL('.', document.currentScript.src).pathname
+               : (document.baseURI ? new URL(document.baseURI).pathname : location.pathname);
+    const swURL = base.replace(/\/?$/, '/') + 'coi-serviceworker.js';
+    try { await navigator.serviceWorker.register(swURL, { scope: base }); } catch (e) {}
+    // Wait until isolated (or timeout) before proceeding
+    for (let i = 0; i < 50 && !crossOriginIsolated; i++) await new Promise(r => setTimeout(r, 100));
+    if (!crossOriginIsolated) console.warn('Not isolated yet; threads will fail.');
   }
+  // Now load your Emscripten module…
+})();
 </script>
 
 <script  src="https://biowasm.com/cdn/v3/aioli.js"></script>
