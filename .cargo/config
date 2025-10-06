@@ -6,3 +6,10 @@ rustflags = [
   # Optional but helpful for link:
   "-C", "link-arg=-pthread",
 ]
+
+
+[profile.release]
+panic = "abort"
+
+[profile.dev]
+panic = "abort"
