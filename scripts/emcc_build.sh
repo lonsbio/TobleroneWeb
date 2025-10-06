@@ -1,6 +1,2 @@
 #!/bin/sh
-
-cargo +nightly clean
-cargo +nightly build --release -Z build-std=std,panic_abort --target wasm32-unknown-emscripten
-
-emcc --no-entry -o toblerone.html  target/wasm32-unknown-emscripten/release  -pthread "-fno-entry" "-s" "ERROR_ON_UNDEFINED_SYMBOLS=0" "-s" "USE_PTHREADS=1" "-s" "PTHREAD_POOL_SIZE=4"  "-s" "USE_ZLIB=1" "-s" "INVOKE_RUN=0" "-s" "FORCE_FILESYSTEM=1" "-s" "EXPORTED_RUNTIME_METHODS=['callMain','FS','PROXYFS','WORKERFS']" "-s" "MODULARIZE=1" "-s" "ENVIRONMENT=web,worker" "-s" "ALLOW_MEMORY_GROWTH=1" "--preload-file" "indexes@/toblerone/" "-lworkerfs.js" "-lproxyfs.js"  $@
+emcc --no-entry -o toblerone.html   -pthread "-fno-entry" "-s" "ERROR_ON_UNDEFINED_SYMBOLS=0" "-s" "USE_PTHREADS=1" "-s" "PTHREAD_POOL_SIZE=4"  "-s" "USE_ZLIB=1" "-s" "INVOKE_RUN=0" "-s" "FORCE_FILESYSTEM=1" "-s" "EXPORTED_RUNTIME_METHODS=['callMain','FS','PROXYFS','WORKERFS']" "-s" "MODULARIZE=1" "-s" "ENVIRONMENT=web,worker" "-s" "ALLOW_MEMORY_GROWTH=1" "--preload-file" "indexes@/toblerone/" "-lworkerfs.js" "-lproxyfs.js"  $@
