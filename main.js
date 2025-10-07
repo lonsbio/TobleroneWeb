@@ -7,22 +7,25 @@ async function boot() {
   }
 
 
+import Aioli from '@biowasm/aioli';
 
-const a = await new Aioli([{tool: "tinyt",
+window.AioliReady = (async () => {
+  const a = new Aioli([{tool: "tinyt",
    // version: "0.0.6",
    // program: "fastqe",         // Optional: sub-tool name; not needed for most tools (default: same as tool name)
     urlPrefix: "https://lonsbio.github.io/TobleroneWeb/",  // Optional: custom path to .wasm assets (default: biowasm CDN)
  //   loading: "eager",         // Optional: if set to "lazy", only downloads WebAssembly modules when needed, not at initialization (default: eager)
  //   reinit: false,           // Optional: if set to true, will reinitialize module after each invocation; not needed for most tools
 }]);
+  await a.init?.();
+  return a;
+})();
 
-  // e.g., list tools or run a simple command if configured in your setup
-  // const res = await a.exec("echo Hello from Aioli");
-  // document.getElementById("app").textContent = res.stdout || "Ready";
-  document.getElementById("app").textContent = "Aioli ready";
-}
-
+const a = await new 
 boot().catch(err => {
   console.error(err);
   document.getElementById("app").textContent = "Error: " + err;
 });
+
+
+
