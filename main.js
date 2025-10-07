@@ -5,9 +5,7 @@ async function boot() {
   if (!self.crossOriginIsolated) {
     console.warn("Page is not crossOriginIsolated; threads may be unavailable.");
   }
-
-
-import Aioli from '@biowasm/aioli';
+}
 
 window.AioliReady = (async () => {
   const a = new Aioli([{tool: "tinyt",
@@ -26,6 +24,3 @@ boot().catch(err => {
   console.error(err);
   document.getElementById("app").textContent = "Error: " + err;
 });
-
-
-
