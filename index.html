@@ -11,18 +11,7 @@
     if (!crossOriginIsolated) console.warn('Not isolated yet; threads will fail.');
   }
   // Now load your Emscripten module…
-})();
-</script>
 
-
-<div id="app">Loading…</div>
-    <script type="module" src="/main.js"></script>
-
-
-<!-- <script  src="https://biowasm.com/cdn/v3/aioli.js"></script> -->
-<script type="module">
-
-import Aioli from "@biowasm/aioli";
 
 const CLI = await new Aioli([{tool: "tinyt",
    // version: "0.0.6",
@@ -125,8 +114,10 @@ let output = await CLI2.exec("tinyt index --num-threads=1 -i /toblerone/testinde
 document.getElementById("output").innerHTML = output;
 document.getElementById("output_help").innerHTML = output_help;
 
+})();
 </script>
-    
+
+
 
 <h1>FASTQE WebAssembly and Tobleroine Example</h1>
 
