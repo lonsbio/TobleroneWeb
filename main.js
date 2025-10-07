@@ -19,7 +19,7 @@ window.AioliReady = (async () => {
   return a;
 })();
 
-const a = await new 
+
 boot().catch(err => {
   console.error(err);
   document.getElementById("app").textContent = "Error: " + err;
