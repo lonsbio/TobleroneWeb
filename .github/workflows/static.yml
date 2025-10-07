@@ -31,13 +31,14 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-
+      - run: cp coi-serviceworker.js pages
       - name: Get release files
         uses: robinraju/release-downloader@v1.8
         with:
          latest: true
          fileName: "*"
          out-file-path: "pages"
+    
       - name: Setup Pages
         uses: actions/configure-pages@v4
       - name: Upload artifact
