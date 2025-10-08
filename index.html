@@ -6,7 +6,9 @@
     const base = document.currentScript?.src ? new URL('.', document.currentScript.src).pathname
                : (document.baseURI ? new URL(document.baseURI).pathname : location.pathname);
     const swURL = base.replace(/\/?$/, '/') + 'coi-serviceworker.js';
-    try { await navigator.serviceWorker.register(swURL, { scope: base }); } catch (e) {}
+    const scope = "/TobleroneWeb/"; // same as Vite base
+    
+    try { await nnavigator.serviceWorker.register(scope + "coi-serviceworker.js", { scope });} catch (e) {}
     // Wait until isolated (or timeout) before proceeding
     for (let i = 0; i < 50 && !crossOriginIsolated; i++) await new Promise(r => setTimeout(r, 100));
     if (!crossOriginIsolated) console.warn('Not isolated yet; threads will fail.');
