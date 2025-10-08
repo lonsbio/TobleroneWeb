@@ -7,8 +7,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (!outEl || !helpEl) {
     console.error("Missing #output or #output_help in HTML");
     return;
-  }
-  
+  }});
+
 async function boot() {
   // Optional: guard in case COEP/COOP isn't ready on first load
   if (!self.crossOriginIsolated) {
