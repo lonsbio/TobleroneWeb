@@ -125,5 +125,4 @@ document.getElementById("output").innerHTML = output;
 document.getElementById("output_help").innerHTML = output_help;
 } catch (err) {
     console.error(err);
-    (document.getElementById("app") || outEl)?.textContent = "Error: " + (err?.message || err);
   }
