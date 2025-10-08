@@ -21,7 +21,7 @@ boot().catch(err => {
   document.getElementById("app").textContent = "Error: " + err;
 });
 
-
+ try {
 
 const CLI =  new Aioli([{tool: "tinyt",
    // version: "0.0.6",
@@ -123,3 +123,7 @@ let output = await CLI2.exec("tinyt index --num-threads=1 -i /toblerone/testinde
 // Run seqtk on "toy.fastq" to generate metrics
 document.getElementById("output").innerHTML = output;
 document.getElementById("output_help").innerHTML = output_help;
+} catch (err) {
+    console.error(err);
+    (document.getElementById("app") || outEl)?.textContent = "Error: " + (err?.message || err);
+  }
