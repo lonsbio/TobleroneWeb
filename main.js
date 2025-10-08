@@ -1,4 +1,21 @@
+// 1) Log who creates blob URLs
+const _origCO = URL.createObjectURL;
+URL.createObjectURL = function (obj) {
+  console.log('createObjectURL called with', obj);
+  console.trace();                          // shows the call stack & file/line
+  return _origCO.call(this, obj);
+};
+
+// 2) Log Worker construction
+const _OrigWorker = window.Worker;
+window.Worker = function (u, o) {
+  console.log('new Worker', u);
+  console.trace();
+  return new _OrigWorker(u, o);
+};
+
 import Aioli from "@biowasm/aioli";
+export const ABS_BASE = new URL(import.meta.env.BASE_URL, location.origin).href;
 
 
 document.addEventListener("DOMContentLoaded", async () => {
