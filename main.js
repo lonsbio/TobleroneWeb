@@ -1,5 +1,14 @@
 import Aioli from "@biowasm/aioli";
 
+
+document.addEventListener("DOMContentLoaded", async () => {
+  const outEl = document.getElementById("output");
+  const helpEl = document.getElementById("output_help");
+  if (!outEl || !helpEl) {
+    console.error("Missing #output or #output_help in HTML");
+    return;
+  }
+  
 async function boot() {
   // Optional: guard in case COEP/COOP isn't ready on first load
   if (!self.crossOriginIsolated) {
