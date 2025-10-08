@@ -7,6 +7,6 @@ const base = process.env.GITHUB_REPOSITORY?.split("/")[1]
   : "/TobleroneWeb";
 
 export default defineConfig({
-  base,
+  base: "/TobleroneWeb/",
   build: { outDir: "pages" },
 });
