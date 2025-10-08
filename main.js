@@ -23,7 +23,7 @@ boot().catch(err => {
 
  try {
 
-const CLI =  new Aioli([{tool: "tinyt",
+const CLI =  await new Aioli([{tool: "tinyt",
    // version: "0.0.6",
    // program: "fastqe",         // Optional: sub-tool name; not needed for most tools (default: same as tool name)
     urlPrefix: "https://lonsbio.github.io/TobleroneWeb/",  // Optional: custom path to .wasm assets (default: biowasm CDN)
@@ -32,7 +32,7 @@ const CLI =  new Aioli([{tool: "tinyt",
 }]);
 
 
-const CLI2 =  new Aioli([{tool: "tinyt",
+const CLI2 =  await new Aioli([{tool: "tinyt",
    // version: "0.0.6",
   //  program: "fastqe",         // Optional: sub-tool name; not needed for most tools (default: same as tool name)
     urlPrefix: "https://lonsbio.github.io/TobleroneWeb/",  // Optional: custom path to .wasm assets (default: biowasm CDN)
