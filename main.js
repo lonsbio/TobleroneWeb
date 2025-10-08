@@ -13,7 +13,11 @@ window.Worker = function (u, o) {
   console.trace();
   return new _OrigWorker(u, o);
 };
-
+const _fetch = self.fetch;
+self.fetch = async (...args) => {
+  console.log("[fetch]", args[0]);
+  return _fetch(...args);
+};
 import Aioli from "@biowasm/aioli";
 export const ABS_BASE = new URL(import.meta.env.BASE_URL, location.origin).href;
 
@@ -38,7 +42,14 @@ boot().catch(err => {
   document.getElementById("app").textContent = "Error: " + err;
 });
 
+
  try {
+
+  const _fetch = self.fetch;
+self.fetch = async (...args) => {
+  console.log("[fetch]", args[0]);
+  return _fetch(...args);
+};
 
 const CLI =  await new Aioli([{tool: "tinyt",
    // version: "0.0.6",
