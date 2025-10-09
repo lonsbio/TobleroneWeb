@@ -1,65 +1,52 @@
-// --- Minimal main.js (clean baseline) ---
-
 import Aioli from "@biowasm/aioli";
 
-// Build an absolute base that matches your GH Pages repo path.
-// Make sure vite.config.js has: base: "/TobleroneWeb/"
-const ABS_BASE = new URL(import.meta.env.BASE_URL, location.origin).href; // e.g. https://lonsbio.github.io/TobleroneWeb/
+const ABS_BASE = new URL(import.meta.env.BASE_URL, location.origin).href; // https://lonsbio.github.io/TobleroneWeb/
 
-// OPTIONAL: light fetch logger (safe)
-const __origFetch = self.fetch.bind(self);
-self.fetch = (...args) => {
-  try { console.log("[fetch]", args[0]); } catch {}
-  return __origFetch(...args);
-};
+document.addEventListener("DOMContentLoaded", async () => {
+  const out  = document.getElementById("output");
+  const help = document.getElementById("output_help");
+  const show = (el, label, r) => {
+    const o = typeof r === "string" ? { stdout: r, stderr: "" } : (r || {});
+    el.textContent += `\n# ${label}\nSTDOUT:\n${o.stdout || ""}\nSTDERR:\n${o.stderr || ""}\n(code=${o.code ?? "?"})\n`;
+  };
 
-document.addEventListener("DOMContentLoaded", () => {
-  (async () => {
-    // Confirm COI for threads
-    if (!self.crossOriginIsolated) {
-      console.warn("Not crossOriginIsolated; threads may be unavailable.");
-    }
+  try {
+    const CLI = await new Aioli(
+      [{ tool: "tinyt", urlPrefix: ABS_BASE }],   // absolute, trailing slash
+      { debug: true, returnType: "object" }       // capture stdout/stderr/code
+    );
 
-    const outEl = document.getElementById("output");
-    const helpEl = document.getElementById("output_help");
-    if (!outEl || !helpEl) {
-      console.error("Missing #output or #output_help in HTML");
-      return;
-    }
+    // 1) Sanity: tool is callable
+    show(help, "tinyt --version", await CLI.exec("tinyt --version"));
 
-    try {
-      // One instance is enough; you can keep two if you really need to.
-      const CLI = await new Aioli(
-        [{ tool: "tinyt", urlPrefix: ABS_BASE }],
-        { debug: true }
-      );
-
-      // Mount sample data
-      await CLI.mount({
-        name: "test.fq",
-        data:
-"@HWI-D00360:5:H814YADXX:1:2209:15175:39729 1:N:0:CGATGT\nTTGGAGGATTTTGGAGAATCCCCTTAGGGGGAAATGTTTAAAAGTGCAAAGTGAATAGTAGAAGCCCCTCTCCTCGTCACTAGGGGTACATTTGCCGTTTTCTTATCAACAGCCTCTCAAGTACAAGCATCTGGGACAAGAACTAGAA\n+\n@CCFFFFFHHHHHJIIIJJJJJJJJJJJJJJGIJIIIIJJJJIJCHIIJJJ@GGJJJIGIJJHGGHHFFFDEEEEDDDDDDDDDDD;@CDEEEEDDDBDDDDCDDDDECCDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDC\n"
-      });
-
-      const fasta_text =
-        `>ENST00000331340.8|IKZF1|3|4|5|6|7|8|9
+    // 2) Mount inputs explicitly
+    await CLI.mount({ name: "test.fasta", data:
+`>ENST00000331340.8|IKZF1|3|4|5|6|7|8|9
 ACTCTAACAAGTGACTGCGCGGCCCGCGCCCGGGGCGGTGACTGCGGCAAGCCCCCTGGGTCCCCGCGC
-`;
-      await CLI.mount({ name: "test.fasta", data: fasta_text });
+`});
 
-      // Run commands
-      const output_help = await CLI.exec("tinyt --help");
-      // adjust the path/index name to your actual asset names on Pages:
-      const output = await CLI.exec("tinyt index --num-threads=1 -i /toblerone/testindex.idx test.fasta");
+    // If your index file lives in the repo, mount it from an absolute URL:
+    // (adjust the path/filename to where your real index file is in Pages)
+    await CLI.mount({
+      name: "testindex.idx",
+      url:  ABS_BASE + "toblerone/testindex.idx"
+    });
 
-      // Update DOM
-      helpEl.textContent = output_help;
-      outEl.textContent = output;
+    // 3) Quick FS peek so we know the files are there
+    const lsRoot = await CLI.exec("ls -la /");
+    const lsTobl = await CLI.exec("ls -la /toblerone || true"); // may not exist
+    const lsHome = await CLI.exec("ls -la .");
+    show(help, "ls /", lsRoot);
+    show(help, "ls /toblerone", lsTobl);
+    show(help, "ls .", lsHome);
 
-    } catch (err) {
-      console.error(err);
-      const app = document.getElementById("app") || document.body;
-      app.textContent = "Error: " + (err && err.message ? err.message : err);
-    }
-  })();
+    // 4) Run help and your index command (paths now match what we mounted)
+    show(help, "tinyt --help", await CLI.exec("tinyt --help"));
+    const res = await CLI.exec("tinyt index --num-threads=1 -i testindex.idx test.fasta");
+    show(out, "tinyt index", res);
+
+  } catch (e) {
+    out.textContent = "Error: " + (e?.message || e);
+    console.error(e);
+  }
 });
