@@ -9,12 +9,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     const o = typeof r === "string" ? { stdout: r } : (r || {});
     el.textContent += `\n# ${label}\nSTDOUT:\n${o.stdout ?? ""}\nSTDERR:\n${o.stderr ?? ""}\n(code=${o.code ?? "?"})\n`;
   };
-
+console.log("start try");
   try {
+    console.log("in try");
+
     const CLI = await new Aioli(
       [{ tool: "tinyt", urlPrefix: ABS_BASE }],
       { debug: true, returnType: "object" }
     );
+console.log("afetr CLI");
+console.log(CLI);
 
     // mount inputs
     await CLI.mount({
