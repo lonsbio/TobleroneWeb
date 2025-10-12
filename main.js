@@ -10,6 +10,41 @@ document.addEventListener("DOMContentLoaded", async () => {
     el.textContent += `\n# ${label}\nSTDOUT:\n${o.stdout ?? ""}\nSTDERR:\n${o.stderr ?? ""}\n(code=${o.code ?? "?"})\n`;
   };
 console.log("start try");
+
+// 1) See any silent page-level errors
+window.addEventListener('error',  e => console.error('[page error]', e.message, e.error || ''));
+window.addEventListener('unhandledrejection', e => console.error('[unhandled]', e.reason));
+
+// 2) Log every Worker creation + errors (doesn’t change behavior)
+(() => {
+  const OrigWorker = window.Worker;
+  window.Worker = function(url, opts) {
+    const w = new OrigWorker(url, opts);
+    console.log('[Worker new]', url);
+    w.addEventListener('error',        ev => console.error('[Worker error]', url, ev.message || ev));
+    w.addEventListener('messageerror', ev => console.error('[Worker messageerror]', url, ev));
+    return w;
+  };
+})();
+
+// 3) Timeout guard so we can see a “hung” message if Aioli doesn’t resolve
+const withTimeout = (p, ms, label='op') => Promise.race([
+  p,
+  new Promise((_, rej) => setTimeout(() => rej(new Error(`[timeout] ${label} > ${ms}ms`)), ms))
+]);
+
+// 4) Ensure the SW has taken control (threads need crossOriginIsolated === true)
+async function ensureIsolation(scopeBase) {
+  if (location.protocol === 'https:' && 'serviceWorker' in navigator && !crossOriginIsolated) {
+    // Wait for activation/claim
+    await navigator.serviceWorker.ready.catch(()=>{});
+    for (let i=0;i<80 && !crossOriginIsolated;i++) { // up to ~8s
+      await new Promise(r=>setTimeout(r,100));
+    }
+  }
+  console.log('[isolation]', { crossOriginIsolated });
+}
+
   try {
     console.log("in try");
 
