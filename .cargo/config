@@ -6,8 +6,6 @@ rustflags = [
   # Optional but helpful for link:
   "-C", "link-arg=-pthread",
   # (optional quality-of-life flags)
-  "-C", "link-arg=-s", "-C", "link-arg=PROXY_TO_PTHREAD=1",
-  "-C", "link-arg=-s", "-C", "link-arg=PTHREAD_POOL_SIZE=4",
   "-C", "link-arg=-s", "-C", "link-arg=MODULARIZE=1",
   "-C", "link-arg=-s", "-C", "link-arg=ENVIRONMENT=web,worker",
 ]
