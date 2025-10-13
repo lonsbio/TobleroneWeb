@@ -36,7 +36,7 @@ jobs:
     - name: Verify  biowasm targets
       run: ls -Rl ./target/wasm32-unknown-emscripten/release/
     - name: Gather target outputs 
-      run: mkdir biowasm && cp ./target/wasm32-unknown-emscripten/release/tinyt.js biowasm && cp ./target/wasm32-unknown-emscripten/release/tinyt.wasm biowasm && cp ./target/wasm32-unknown-emscripten/release/deps/tinyt.data biowasm  && cp ./target/wasm32-unknown-emscripten/release/deps/tinyt.worker.js biowasm
+      run: mkdir biowasm && cp ./target/wasm32-unknown-emscripten/release/tinyt.js biowasm && cp ./target/wasm32-unknown-emscripten/release/tinyt.wasm biowasm && cp ./target/wasm32-unknown-emscripten/release/deps/tinyt.data biowasm  && cp ./target/wasm32-unknown-emscripten/release/tinyt.worker.js biowasm
     - name: Verify  biowasm
       run: ls -Rl biowasm
     - uses: softprops/action-gh-release@v1
