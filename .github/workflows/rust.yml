@@ -31,6 +31,7 @@ jobs:
 #      run: cargo build --verbose --target wasm32-unknown-emscripten --release
     - name: test threads
       run: emcc -O2 -pthread -s MODULARIZE=1 -s PROXY_TO_PTHREAD=1 -o test.js test.c
+    - name: test threads output
       run: ls
     - name: Build nightly
       run: cargo +nightly clean && cargo +nightly build --release -Z build-std=std,panic_abort --target wasm32-unknown-emscripten
