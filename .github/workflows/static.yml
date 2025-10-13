@@ -32,6 +32,8 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: cp coi-serviceworker.js pages
+      - run: node download-biowasm-tools.js 
+      - run: cp -r pages-temp/* pages
       - name: Get release files
         uses: robinraju/release-downloader@v1.8
         with:
