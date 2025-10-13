@@ -30,6 +30,7 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - run: npm i node-fetch
       - run: npm run build
       - run: cp coi-serviceworker.js pages
       - run: node download-biowasm-tools.js 
