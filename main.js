@@ -127,7 +127,7 @@ ACTCTAACAAGTGACTGCGCGGCCCGCGCCCGGGGCGGTGACTGCGGCAAGCCCCCTGGGTCCCCGCGCGGCGCATCCCA
 await CLI.fs.writeFile("testindex.idx", "");
 
     // run your command (note: -i argument must match the mounted filename)
-    const res = await CLI.exec("tinyt index --num-threads=1 -i testindex.idx test.fasta");
+   // const res = await CLI.exec("tinyt index --num-threads=1 -i testindex.idx test.fasta");
     show(out, "tinyt index --num-threads=1 -i testindex.idx test.fasta", res);
 
   } catch (e) {
