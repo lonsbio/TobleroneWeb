@@ -49,9 +49,18 @@ async function ensureIsolation(scopeBase) {
     console.log("in try");
 
     const CLI = await new Aioli(
-      [{ tool: "tinyt", urlPrefix: ABS_BASE }],
-      { debug: true, returnType: "object" }
-    );
+      [{
+         tool: "tinyt",
+
+         // Optional: sub-tool name; not needed for most tools (default: same as tool name)
+  urlPrefix: 'https://lonsbio.github.io/TobleroneWeb/',  // Optional: custom path to .wasm assets (default: biowasm CDN)
+    loading: "eager",         // Optional: if set to "lazy", only downloads WebAssembly modules when needed, not at initialization (default: eager)
+    reinit: false,           // Optional: if set to true, will reinitialize module after each invocation; not needed for most tools
+}], {
+    printInterleaved: true,  // Optional: whether to return interleaved stdout/stderr; if false, returns object with stdout/stderr keys (default: true)
+    debug: true,            // Optional: set to true to see console log messages for debugging (default: false)
+});
+    
 console.log("afetr CLI");
 console.log(CLI);
 
