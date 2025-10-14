@@ -124,10 +124,11 @@ ACTCTAACAAGTGACTGCGCGGCCCGCGCCCGGGGCGGTGACTGCGGCAAGCCCCCTGGGTCCCCGCGCGGCGCATCCCA
     // run tinyt; these WILL produce output
     show(help, "tinyt --version", await CLI.exec("tinyt --version"));
     show(help, "tinyt --help",    await CLI.exec("tinyt --help"));
+await CLI.fs.writeFile("testindex.idx", "");
 
     // run your command (note: -i argument must match the mounted filename)
     const res = await CLI.exec("tinyt index --num-threads=1 -i testindex.idx test.fasta");
-    show(out, "tinyt index", res);
+    show(out, "tinyt index --num-threads=1 -i testindex.idx test.fasta", res);
 
   } catch (e) {
     (out || document.body).textContent = "Error: " + (e?.message || e);
