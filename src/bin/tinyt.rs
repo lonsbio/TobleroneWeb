@@ -14,6 +14,8 @@ use std::{path::PathBuf, str};
 
 use tinyt::{
     build_index::build_index,
+    build_index::export_minimal_index,
+    build_index::write_minimal_index,
     pseudoaligner,
     pseudoaligner::process_reads,
 };
@@ -111,6 +113,11 @@ if args.flag_trim_size <= args.flag_mismatch {
         info!("Writing index to disk");
         utils::write_obj(&index, &args.arg_index)?;
         info!("Finished writing index!");
+        info!("Writing minimial index to disk");
+        let bundle = export_minimal_index(&index);
+        write_minimal_index("testindex.minidx", &bundle);
+        info!("Finished writing minimial index to disk");    
+
         info!("Total equivalence classes: {}", index.dbg.len() );
 
         use debruijn::Mer;

@@ -94,6 +94,79 @@ pub fn build_index<K: Kmer + Sync + Send>(
     ))
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct MinimalIndexBundle {
+    // MPHf: We store the full BoomPHF bytes
+    pub mphf_bytes: Vec<u8>,          // portable
+
+    // node_offsets: already (u32,u32)
+    pub node_offsets: Vec<(u32,u32)>,
+
+    // equivalence classes: Vec<Vec<u32>>
+    pub eq_classes: Vec<Vec<u32>>,
+
+    // transcript names
+    pub tx_names: Vec<String>,
+
+    // gene associations
+    pub tx_gene_map: Vec<u32>,        // index into gene_names
+
+    pub gene_names: Vec<String>,
+    pub gene_lengths: Vec<u32>,
+}
+
+pub fn export_minimal_index<K: Kmer>(
+    pa: &Pseudoaligner<K>
+) -> MinimalIndexBundle {
+    use boomphf::serialization::{NativeSerializer, Serializable};
+    use std::io::Cursor;
+
+    // serialize MPHf into Vec<u8>
+    let mut mphf_bytes = Vec::<u8>::new();
+    pa.dbg_index.get_mphf().serialize(&mut NativeSerializer::new(&mut mphf_bytes))
+        .expect("mphf serialize");
+
+    // flatten tx->gene
+    let mut gene_names = Vec::<String>::new();
+    let mut gene_index = std::collections::HashMap::new();
+    let mut gene_lengths = Vec::<u32>::new();
+    let mut tx_gene_map = Vec::<u32>::new();
+
+    for tx in &pa.tx_names {
+        let g = pa.tx_gene_map.get(tx).cloned().unwrap_or("NA".into());
+        let gid = if let Some(&i) = gene_index.get(&g) {
+            i
+        } else {
+            let idx = gene_names.len() as u32;
+            gene_index.insert(g.clone(), idx);
+            gene_names.push(g.clone());
+            gene_lengths.push(
+                pa.gene_length_map.get(tx).copied().unwrap_or(0) as u32
+            );
+            idx
+        };
+        tx_gene_map.push(gid);
+    }
+
+    MinimalIndexBundle {
+        mphf_bytes,
+        node_offsets: pa.dbg_index.values().cloned().collect(),
+        eq_classes: pa.eq_classes.clone(),
+        tx_names: pa.tx_names.clone(),
+        tx_gene_map,
+        gene_names,
+        gene_lengths,
+    }
+}
+
+pub fn write_minimal_index(
+    path: &str,
+    bundle: &MinimalIndexBundle,
+) {
+    let mut f = std::fs::File::create(path).unwrap();
+    bincode::serialize_into(&mut f, bundle).unwrap();
+}
+
 // Manually compute the equivalence class of each kmer, and make sure
 // it matches that equivalence class for that kmer inside the DBG.
 #[inline(never)]
