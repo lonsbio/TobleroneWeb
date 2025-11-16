@@ -137,10 +137,7 @@ if args.flag_trim_size <= args.flag_mismatch {
         info!("Writing index to disk");
         utils::write_obj(&index, &args.flag_index)?;
         info!("Finished writing index!");
-        info!("Writing minimial index to disk");
-        let bundle = export_minimal_index(&index);
-        write_minimal_index("testindex.minidx", &bundle);
-        info!("Finished writing minimial index to disk");    
+         
 
         info!("Total equivalence classes: {}", index.dbg.len() );
 
