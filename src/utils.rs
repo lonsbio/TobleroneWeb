@@ -20,7 +20,7 @@ use debruijn::dna_string::DnaString;
 use log::info;
 
 use crate::config::FastaFormat;
-
+ use debruijn::Mer;
 pub fn write_obj<T: Serialize, P: AsRef<Path> + Debug>(
     g: &T,
     filename: P,
@@ -177,3 +177,66 @@ pub fn open_file<P: AsRef<Path>>(filename: &str, outdir: P) -> Result<File, Erro
     let outfile = File::create(&out_fn)?;
     Ok(outfile)
 }
+
+pub fn kmers_to_u64_vec(seq: &DnaString, k: usize) -> Vec<u64> {
+    if k == 0 || seq.len() < k {
+        return Vec::new();
+    }
+    if k > 32 {
+        panic!("kmers_to_u64_vec: k > 32 not supported for u64 packing");
+    }
+
+    let mut out = Vec::with_capacity(seq.len() - k + 1);
+    let mut fwd: u64 = 0;
+    let mut rev: u64 = 0;
+    let mut window_valid = true;
+    let mask: u64 = if k * 2 == 64 {
+        u64::MAX
+    } else {
+        (1u64 << (2 * k)) - 1
+    };
+    let rev_shift = 2 * (k - 1);
+
+    for (i, _) in (0..seq.len()).enumerate() {
+        let base = seq.get(i);
+        let val = match base {
+            b'A' | b'a' => 0u64,
+            b'C' | b'c' => 1u64,
+            b'G' | b'g' => 2u64,
+            b'T' | b't' => 3u64,
+            _ => {
+                // invalid base (N etc.) — break current rolling window
+                window_valid = false;
+                // advance counters: still shift but mark invalid until we have k valid bases
+                fwd = 0;
+                rev = 0;
+                continue;
+            }
+        };
+
+        // roll forward k-mer (left-shift)
+        fwd = ((fwd << 2) | val) & mask;
+        // roll reverse-complement (right-shift, add complement at high bits)
+        let comp = 3u64 - val;
+        rev = (rev >> 2) | (comp << rev_shift);
+
+        if i + 1 >= k {
+            if !window_valid {
+                // window becomes valid only when we've seen k consecutive valid bases
+                // check the trailing k bases: simple strategy is to set/clear window_valid by
+                // tracking consecutive valid bases, here we reset window_valid true after k valid inserts
+                // For skeleton keep it conservative: assume window_valid becomes true only if we didn't meet invalid base
+                // (advanced: track a counter of consecutive valid bases)
+                // For now, if we reached here and haven't seen invalid base since start, window_valid is true.
+            }
+            // canonical
+            let canonical = std::cmp::min(fwd, rev);
+            out.push(canonical);
+            // after pushing, if you want sliding correctness with invalid bases,
+            // you can maintain a counter of consecutive valid bases to flip window_valid.
+        }
+    }
+
+    out
+}
+

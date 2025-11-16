@@ -35,6 +35,9 @@ jobs:
       - run: cp coi-serviceworker.js pages
       - run: node download-biowasm-tools.js 
       - run: cp -r pages_temp/* pages
+      - run: cp paired* pages
+      - run: cp compiletest* pages
+      - run: cp test.fasta pages 
       - name: Get release files
         uses: robinraju/release-downloader@v1.8
         with:
