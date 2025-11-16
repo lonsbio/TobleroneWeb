@@ -19,6 +19,11 @@ use crate::config::{MIN_KMERS, U32_MAX,DEFAULT_ALLOWED_MISMATCHES};
 use crate::equiv_classes::{CountFilterEqClass, EqClassIdType};
 use crate::pseudoaligner::Pseudoaligner;
 use boomphf;
+use boomphf::Mphf;
+use serde::{Serialize, Deserialize};
+use bincode;
+
+
 use failure::Error;
 use log::info;
 use rayon::prelude::*;
@@ -93,6 +98,226 @@ pub fn build_index<K: Kmer + Sync + Send>(
         gene_length_map.clone(),
     ))
 }
+
+
+
+#[derive(Serialize, Deserialize)]
+pub struct WasmIndex {
+    /// kmer length
+    pub k: u8,
+    /// flat list of (kmer_u64, node_id, offset_in_node)
+    pub kmers: Vec<(u64, u32, u32)>,
+    /// equivalence classes (copy of eq_classes used by Pseudoaligner)
+    pub eq_classes: Vec<Vec<u32>>,
+    /// transcript metadata needed for downstream mapping
+    pub tx_names: Vec<String>,
+    pub tx_gene_map: HashMap<String, String>,
+    pub gene_length_map: HashMap<String, usize>,
+}
+
+impl WasmIndex {
+    pub fn save_to_file(&self, path: &std::path::Path) -> Result<(), failure::Error> {
+        let f = std::fs::File::create(path)?;
+        bincode::serialize_into(f, self)?;
+        Ok(())
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, failure::Error> {
+        let idx: WasmIndex = bincode::deserialize(bytes)?;
+        Ok(idx)
+    }
+}
+
+pub trait IndexLike: Sync {
+    fn map_read(&self, read_seq: &DnaString, mismatch_size: usize) -> Option<(Vec<u32>, usize, usize, usize)>;
+    fn tx_names(&self) -> &Vec<String>;
+    fn tx_gene_mapping(&self) -> &HashMap<String, String>;
+    fn gene_length_mapping(&self) -> &HashMap<String, usize>;
+}
+
+
+// impl IndexLike for WasmRuntimeIndex {
+//     fn map_read(&self, read_seq: &DnaString, mismatch_size: usize) -> Option<(Vec<u32>, usize, usize, usize)> {
+//         // construct u64 kmers for this read using the same K used to build the index.
+//         // You need to convert each kmer in the read to its canonical u64 representation.
+//         // Implementation detail depends on the Kmer type you used on native side.
+//         // Placeholder: collect kmers as u64 (implement conversion)
+//         let kmers_u64: Vec<u64> = crate::utils::kmers_to_u64_vec(read_seq, self.k as usize);
+//         self.map_read_from_u64_kmers(&kmers_u64)
+//     }
+//     fn tx_names(&self) -> &Vec<String> { &self.tx_names }
+//     fn tx_gene_mapping(&self) -> &HashMap<String, String> { &self.tx_gene_map }
+//     fn gene_length_mapping(&self) -> &HashMap<String, usize> { &self.gene_length_map }
+// }
+
+
+
+impl IndexLike for WasmRuntimeIndex {
+    fn map_read(&self, read_seq: &DnaString, _allowed_mismatches: usize) -> Option<(Vec<u32>, usize, usize, usize)> {
+        // convert read into canonical k-mer u64s (utils::kmers_to_u64_vec must match exporter encoding)
+        let kmers = crate::utils::kmers_to_u64_vec(read_seq, self.k as usize);
+        if kmers.is_empty() {
+            return None;
+        }
+
+        // collect node ids hit by kmers
+        let mut nodes: Vec<usize> = Vec::with_capacity(kmers.len());
+        for k in kmers.iter() {
+            if let Some((node_id, _offset)) = self.lookup.get(k) {
+                nodes.push(*node_id as usize);
+            }
+        }
+        if nodes.is_empty() {
+            return None;
+        }
+
+        // start with eq-class of first node, intersect with others
+        let mut eq = match self.eq_classes.get(nodes[0]) {
+            Some(v) => v.clone(),
+            None => return None,
+        };
+        // dedupe & sort to ensure retain/intersect works
+        eq.sort_unstable();
+        eq.dedup();
+
+        for &n in nodes.iter().skip(1) {
+            if let Some(other) = self.eq_classes.get(n) {
+                let other_set: HashSet<u32> = other.iter().cloned().collect();
+                eq.retain(|x| other_set.contains(x));
+                if eq.is_empty() {
+                    return None;
+                }
+            } else {
+                return None;
+            }
+        }
+
+        // return (eq_class, number_of_kmers_matched, mismatches_placeholder, read_length)
+        Some((eq, nodes.len(), 0usize, read_seq.len()))
+    }
+
+    fn tx_names(&self) -> &Vec<String> {
+        &self.tx_names
+    }
+
+    fn tx_gene_mapping(&self) -> &HashMap<String, String> {
+        &self.tx_gene_map
+    }
+
+    fn gene_length_mapping(&self) -> &HashMap<String, usize> {
+        &self.gene_length_map
+    }
+}
+
+// Exporter: walk the de Bruijn graph and collect all kmers -> node+offset
+pub fn export_wasm_index<K: Kmer>(al: &Pseudoaligner<K>) -> WasmIndex {
+    let mut kmers = Vec::new();
+    let klen = K::k() as u8;
+
+    // iterate nodes and all contained kmers
+    for node_id in 0..al.dbg.len() {
+        let node = al.dbg.get_node_kmer(node_id);
+        for (offset, kmer) in node.into_iter().enumerate() {
+            kmers.push((kmer.to_u64(), node_id as u32, offset as u32));
+        }
+    }
+
+    WasmIndex {
+        k: klen,
+        kmers,
+        eq_classes: al.eq_classes.clone(),
+        tx_names: al.tx_names.clone(),
+        tx_gene_map: al.tx_gene_mapping.clone(),
+        gene_length_map: al.gene_length_mapping.clone(),
+    }
+}
+
+pub fn intersect<T: Eq + Ord>(v1: &mut Vec<T>, v2: &[T]) {
+    if v1.is_empty() {
+        return;
+    }
+
+    if v2.is_empty() {
+        v1.clear();
+    }
+
+    let mut fill_idx1 = 0;
+    let mut idx1 = 0;
+    let mut idx2 = 0;
+
+    while idx1 < v1.len() && idx2 < v2.len() {
+        let rem_slice = &v2[idx2..];
+        match rem_slice.binary_search(&v1[idx1]) {
+            Ok(pos) => {
+                v1.swap(fill_idx1, idx1);
+                fill_idx1 += 1;
+                idx1 += 1;
+                idx2 = pos + 1;
+            }
+            Err(pos) => {
+                idx1 += 1;
+                idx2 = pos;
+            }
+        }
+    }
+    v1.truncate(fill_idx1);
+}
+
+
+
+
+pub struct WasmRuntimeIndex {
+    pub k: u8,
+    /// runtime lookup for kmer u64 -> (node_id, offset)
+    pub lookup: HashMap<u64, (u32, u32)>,
+    pub eq_classes: Vec<Vec<u32>>,
+    pub tx_names: Vec<String>,
+    pub tx_gene_map: HashMap<String, String>,
+    pub gene_length_map: HashMap<String, usize>,
+}
+
+impl WasmRuntimeIndex {
+    pub fn from_wasm_index(idx: WasmIndex) -> Self {
+        let lookup = idx.kmers.into_iter().map(|(kmer, node, offset)| (kmer, (node, offset)))
+    .collect::<HashMap<u64, (u32, u32)>>();
+        WasmRuntimeIndex {
+            k: idx.k,
+            lookup,
+            eq_classes: idx.eq_classes,
+            tx_names: idx.tx_names,
+            tx_gene_map: idx.tx_gene_map,
+            gene_length_map: idx.gene_length_map,
+        }
+    }
+
+    /// lookup a single kmer given as u64
+    pub fn lookup_kmer(&self, kmer_u64: u64) -> Option<(u32, u32)> {
+        self.lookup.get(&kmer_u64).cloned()
+    }
+
+ fn map_read_from_u64_kmers(&self, kmers_u64: &[u64]) -> Option<(Vec<u32>, usize, usize, usize)> {
+        let mut nodes: Vec<usize> = Vec::new();
+        for &k in kmers_u64 {
+            if let Some((node_id, _off)) = self.lookup.get(&k) {
+                nodes.push(*node_id as usize);
+            }
+        }
+        if nodes.is_empty() {
+            return None;
+        }
+        // intersect eq classes for nodes
+        let mut eq_class: Vec<u32> = Vec::new();
+        // first node's eq-class
+        let first_color = self.lookup.get(&kmers_u64[0]).map(|(nid, _)| *nid as usize).unwrap_or(0);
+        eq_class.extend(&self.eq_classes[first_color]); // careful: node id -> eq index mapping must match
+        for &n in nodes.iter().skip(1) {
+            intersect(&mut eq_class, &self.eq_classes[n]);
+        }
+        Some((eq_class, kmers_u64.len(), 0, (kmers_u64.len() + self.k as usize - 1)))
+    }
+
+}
+
 
 // Manually compute the equivalence class of each kmer, and make sure
 // it matches that equivalence class for that kmer inside the DBG.

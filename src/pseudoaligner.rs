@@ -25,8 +25,7 @@ use itertools::Itertools;  // itertools = "0.8"
 use crate::config::{LEFT_EXTEND_FRACTION, READ_COVERAGE_THRESHOLD, DEFAULT_ALLOWED_MISMATCHES, TRIM_VAL};
 use crate::equiv_classes::EqClassIdType;
 use crate::utils;
-
-
+use crate::build_index::{IndexLike};
 
 
 
@@ -39,6 +38,15 @@ pub struct Pseudoaligner<K: Kmer> {
     pub tx_gene_mapping: HashMap<String, String>,
     pub gene_length_mapping: HashMap<String, usize>,
 }
+
+// pub trait IndexLike: Sync {
+//     fn map_read(&self, read_seq: &DnaString, mismatch_size: usize) -> Option<(Vec<u32>, usize, usize, usize)>;
+//     fn tx_names(&self) -> &Vec<String>;
+//     fn tx_gene_mapping(&self) -> &HashMap<String, String>;
+//     fn gene_length_mapping(&self) -> &HashMap<String, usize>;
+// }
+
+
 
 impl<K: Kmer + Sync + Send> Pseudoaligner<K> {
     pub fn new(
@@ -394,6 +402,25 @@ impl<K: Kmer + Sync + Send> Pseudoaligner<K> {
     }
 }
 
+
+impl<K: Kmer + Sync + Send> IndexLike for Pseudoaligner<K> {
+    fn map_read(&self, read_seq: &DnaString, mismatch_size: usize) -> Option<(Vec<u32>, usize, usize, usize)> {
+        // delegate to existing method
+        Pseudoaligner::map_read(self, read_seq, mismatch_size)
+    }
+    fn tx_names(&self) -> &Vec<String> {
+        &self.tx_names
+    }
+    fn tx_gene_mapping(&self) -> &HashMap<String, String> {
+        &self.tx_gene_mapping
+    }
+    fn gene_length_mapping(&self) -> &HashMap<String, usize> {
+        &self.gene_length_mapping
+    }
+}
+
+
+
 /// Compute the intersection of v1 and v2 inplace on top of v1
 /// v1 and v2 must be sorted and deduplicated.
 pub fn intersect<T: Eq + Ord>(v1: &mut Vec<T>, v2: &[T]) {
@@ -431,7 +458,7 @@ pub fn intersect<T: Eq + Ord>(v1: &mut Vec<T>, v2: &[T]) {
 
 
 // high level function to call match_read and check revcomp, select best match for unique ec if in doubtc
-pub fn match_strands<K: Kmer + Sync + Send>(record: &fastq::Record,  trim: bool,trimsize: usize,mismatchsize: usize, index: &Pseudoaligner<K>  ) -> Option<(Option<(bool,bool,String,Vec<u32>, usize,usize,bool,usize)>,String)> {
+pub fn match_strands(record: &fastq::Record,  trim: bool,trimsize: usize,mismatchsize: usize, index: &dyn IndexLike  ) -> Option<(Option<(bool,bool,String,Vec<u32>, usize,usize,bool,usize)>,String)> {
 
 
  // make next steps a function so can be called for R1 and R2  in a paired end version
@@ -511,7 +538,7 @@ pub fn match_strands<K: Kmer + Sync + Send>(record: &fastq::Record,  trim: bool,
 
 
 // function to match read to result
-pub fn match_read<K: Kmer + Sync + Send>(optional: Option<(Vec<u32>, usize, usize,usize)>, seq: &String,  record_id: &String,  trim: bool, trimsize: usize, mismatchsize: usize,seqlength: usize, index: &Pseudoaligner<K>  ) -> Option<(bool,bool,String,Vec<u32>, usize,usize,bool,usize)> {
+pub fn match_read(optional: Option<(Vec<u32>, usize, usize,usize)>, seq: &String,  record_id: &String,  trim: bool, trimsize: usize, mismatchsize: usize,seqlength: usize, index: &dyn IndexLike  ) -> Option<(bool,bool,String,Vec<u32>, usize,usize,bool,usize)> {
 
         // Some format: Hit to ec, unique ec, read, eq_class, coverage, mismatches,trimmed 
 
@@ -598,7 +625,7 @@ pub fn match_read<K: Kmer + Sync + Send>(optional: Option<(Vec<u32>, usize, usiz
 pub fn process_reads<K: Kmer + Sync + Send>(
     reader: fastq::Reader<File>,
     reader_pair: Option<fastq::Reader<File>>,
-    index: &Pseudoaligner<K>,
+    index: &dyn IndexLike,
     outfile: Option<String>,
     num_threads: usize,
     trim: bool,
@@ -877,7 +904,7 @@ info!("Spawning {} threads for Mapping.\n", num_threads);
 
                          // read mapped to unqiue ec
                          if read_data.1 {
-                   *frequency.entry(&index.tx_names[read_data.3[0] as usize]).or_insert(0) += 1;
+                   *frequency.entry(&index.tx_names()[read_data.3[0] as usize]).or_insert(0) += 1;
 
 
 
@@ -935,7 +962,7 @@ info!("Spawning {} threads for Mapping.\n", num_threads);
 
 		//manipulate the hash - fill missing entries with 0 from index
 
-			for trans in &index.tx_names {
+			for trans in index.tx_names() {
 			if trans.contains("del"){
 			//if trans.contains("_")// future use a more universal symbol, needs to work with single cases: del2
 
@@ -952,8 +979,8 @@ info!("Spawning {} threads for Mapping.\n", num_threads);
         //for (key, value) in &frequency.keys().sorted() {
         for key in &frequency.keys().sorted() {
 	let value = &frequency[&key as &str];
-	let gene_id = &index.tx_gene_mapping.get(&key.to_string()).unwrap();
-	let gene_length = &index.gene_length_mapping.get(&gene_id.to_string()).unwrap();
+	let gene_id = &index.tx_gene_mapping().get(&key.to_string()).unwrap();
+	let gene_length = &index.gene_length_mapping().get(&gene_id.to_string()).unwrap();
 	 	let prop = *value as f32 / mapped_read_counter as f32;	
 		let scalefactor =  (read_mult as f32 / (**gene_length as f32));
 		let scaleprop = prop / scalefactor;
