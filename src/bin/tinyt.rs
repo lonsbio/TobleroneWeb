@@ -279,16 +279,16 @@ if args.flag_trim_size <= args.flag_mismatch {
 
 
         // --- diagnostic: load both native and wasm index for side-by-side comparison ---
-        let native_idx: Pseudoaligner<config::KmerType> = utils::read_obj("compiletest.idx")?;
-        let wasm_path = format!("{}.wasm.idx", &args.flag_index);
-        let wasm_rt = if std::path::Path::new(&wasm_path).exists() {
-            let wasm_idx: WasmIndex = utils::read_obj(&wasm_path)?;
-            WasmRuntimeIndex::from_wasm_index(wasm_idx)
-        } else {
-            // no wasm index available - build one from native for diagnostics
-            let wasm_idx = tinyt::build_index::export_wasm_index::<config::KmerType>(&native_idx);
-            WasmRuntimeIndex::from_wasm_index(wasm_idx)
-        };
+        // let native_idx: Pseudoaligner<config::KmerType> = utils::read_obj("compiletest.idx")?;
+        // let wasm_path = format!("{}.wasm.idx", &args.flag_index);
+        // let wasm_rt = if std::path::Path::new(&wasm_path).exists() {
+        //     let wasm_idx: WasmIndex = utils::read_obj(&wasm_path)?;
+        //     WasmRuntimeIndex::from_wasm_index(wasm_idx)
+        // } else {
+        //     // no wasm index available - build one from native for diagnostics
+        //     let wasm_idx = tinyt::build_index::export_wasm_index::<config::KmerType>(&native_idx);
+        //     WasmRuntimeIndex::from_wasm_index(wasm_idx)
+        // };
 // {
 //     use debruijn::dna_string::DnaString;
 //     use bio::io::fastq;
