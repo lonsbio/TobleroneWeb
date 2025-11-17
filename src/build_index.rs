@@ -4,6 +4,7 @@
 
 use lazy_static::lazy_static;
 use std::collections::{HashMap, HashSet};
+
 use std::sync::Arc;
 
 use crate::config::{KmerType, MEM_SIZE, REPORT_ALL_KMER, STRANDED};
@@ -113,6 +114,7 @@ pub struct WasmIndex {
     pub tx_names: Vec<String>,
     pub tx_gene_map: HashMap<String, String>,
     pub gene_length_map: HashMap<String, usize>,
+    pub node_eq: Vec<u32>
 }
 
 impl WasmIndex {
@@ -152,6 +154,194 @@ pub trait IndexLike: Sync {
 
 
 
+// impl IndexLike for WasmRuntimeIndex {
+//     fn map_read(&self, read_seq: &DnaString, _allowed_mismatches: usize) -> Option<(Vec<u32>, usize, usize, usize)> {
+//         // convert read into canonical k-mer u64s (utils::kmers_to_u64_vec must match exporter encoding)
+//         let kmers = crate::utils::kmers_to_u64_vec(read_seq, self.k as usize);
+//         if kmers.is_empty() {
+//             return None;
+//         }
+
+//         // collect node ids hit by kmers
+//         let mut nodes: Vec<usize> = Vec::with_capacity(kmers.len());
+//         for k in kmers.iter() {
+//             if let Some((node_id, _offset)) = self.lookup.get(k) {
+//                 nodes.push(*node_id as usize);
+//             }
+//         }
+//         if nodes.is_empty() {
+//             return None;
+//         }
+
+//         // start with eq-class of first node, intersect with others
+//         let mut eq = match self.eq_classes.get(nodes[0]) {
+//             Some(v) => v.clone(),
+//             None => return None,
+//         };
+//         // dedupe & sort to ensure retain/intersect works
+//         eq.sort_unstable();
+//         eq.dedup();
+
+//         for &n in nodes.iter().skip(1) {
+//             if let Some(other) = self.eq_classes.get(n) {
+//                 let other_set: HashSet<u32> = other.iter().cloned().collect();
+//                 eq.retain(|x| other_set.contains(x));
+//                 if eq.is_empty() {
+//                     return None;
+//                 }
+//             } else {
+//                 return None;
+//             }
+//         }
+
+//         // return (eq_class, number_of_kmers_matched, mismatches_placeholder, read_length)
+//         Some((eq, nodes.len(), 0usize, read_seq.len()))
+//     }
+
+//     fn tx_names(&self) -> &Vec<String> {
+//         &self.tx_names
+//     }
+
+//     fn tx_gene_mapping(&self) -> &HashMap<String, String> {
+//         &self.tx_gene_map
+//     }
+
+//     fn gene_length_mapping(&self) -> &HashMap<String, usize> {
+//         &self.gene_length_map
+//     }
+// }
+
+
+// // Update IndexLike impl to map node -> eq_id before using eq_classes
+// impl IndexLike for WasmRuntimeIndex {
+//     fn map_read(&self, read_seq: &DnaString, _allowed_mismatches: usize) -> Option<(Vec<u32>, usize, usize, usize)> {
+//         let kmers = crate::utils::kmers_to_u64_vec(read_seq, self.k as usize);
+//         if kmers.is_empty() {
+//             return None;
+//         }
+
+//         // collect eq_ids hit by kmers (not raw node ids)
+//         let mut eq_candidates: Vec<u32> = Vec::new();
+//         for k in kmers.iter() {
+//             if let Some((node_id, _offset)) = self.lookup.get(k) {
+//                 let node_idx = *node_id as usize;
+//                 if let Some(&eqid) = self.node_eq.get(node_idx) {
+//                     eq_candidates.push(eqid);
+//                 }
+//             }
+//         }
+//         if eq_candidates.is_empty() {
+//             return None;
+//         }
+
+//         // Intersect eq_classes based on eq_id indices
+//         // Start with first eq_id's class
+//         let first_eqid = eq_candidates[0] as usize;
+//         let mut eq = match self.eq_classes.get(first_eqid) {
+//             Some(v) => v.clone(),
+//             None => return None,
+//         };
+//         eq.sort_unstable();
+//         eq.dedup();
+
+//         for &eqid_u in eq_candidates.iter().skip(1) {
+//             if let Some(other) = self.eq_classes.get(eqid_u as usize) {
+//                 let other_set: std::collections::HashSet<u32> = other.iter().cloned().collect();
+//                 eq.retain(|x| other_set.contains(x));
+//                 if eq.is_empty() {
+//                     return None;
+//                 }
+//             } else {
+//                 return None;
+//             }
+//         }
+
+//         Some((eq, kmers.len(), 0usize, read_seq.len()))
+//     }
+
+
+//     fn tx_names(&self) -> &Vec<String> {
+//         &self.tx_names
+//     }
+
+//     fn tx_gene_mapping(&self) -> &HashMap<String, String> {
+//         &self.tx_gene_map
+//     }
+
+//     fn gene_length_mapping(&self) -> &HashMap<String, usize> {
+//         &self.gene_length_map
+//     }
+
+
+// }
+
+
+
+// impl IndexLike for WasmRuntimeIndex {
+//     fn map_read(&self, read_seq: &DnaString, allowed_mismatches: usize) -> Option<(Vec<u32>, usize, usize, usize)> {
+//         // convert read into canonical k-mer u64s (utils::kmers_to_u64_vec must match exporter encoding)
+//         let kmers = crate::utils::kmers_to_u64_vec(read_seq, self.k as usize);
+//         if kmers.is_empty() {
+//             return None;
+//         }
+
+//         // Count votes per eq_id by mapping kmer -> node -> node_eq -> eq_id
+//         let mut eq_counts: HashMap<u32, usize> = HashMap::new();
+//         let mut total_matches: usize = 0;
+//         for k in kmers.iter() {
+//             if let Some((node_id, _offset)) = self.lookup.get(k) {
+//                 let node_idx = *node_id as usize;
+//                 if let Some(&eqid) = self.node_eq.get(node_idx) {
+//                     *eq_counts.entry(eqid).or_insert(0) += 1;
+//                     total_matches += 1;
+//                 }
+//             }
+//         }
+
+//         if eq_counts.is_empty() {
+//             return None;
+//         }
+
+//         // Find best eq_id by vote count
+//         let (&best_eqid, &best_count) = eq_counts.iter().max_by_key(|&(_eqid, cnt)| cnt).unwrap();
+
+//         // Compute mismatches as number of kmers not supporting best_eq
+//         let mismatches = kmers.len().saturating_sub(best_count);
+
+//         // Apply a simple threshold: if mismatches exceed allowed_mismatches, treat as no hit
+//         if mismatches > allowed_mismatches {
+//             return None;
+//         }
+
+//         // Return the transcript ids for the best eq_id
+//         let txs = match self.eq_classes.get(best_eqid as usize) {
+//             Some(v) => v.clone(),
+//             None => return None,
+//         };
+
+//         // coverage: number of kmers matching best eq
+//         let coverage = best_count;
+
+//         // read length: return the read_seq length
+//         let readlen = read_seq.len();
+
+//         Some((txs, coverage, mismatches, readlen))
+//     }
+
+//     fn tx_names(&self) -> &Vec<String> {
+//         &self.tx_names
+//     }
+
+//     fn tx_gene_mapping(&self) -> &HashMap<String, String> {
+//         &self.tx_gene_map
+//     }
+
+//     fn gene_length_mapping(&self) -> &HashMap<String, usize> {
+//         &self.gene_length_map
+//     }
+// }
+
+
 impl IndexLike for WasmRuntimeIndex {
     fn map_read(&self, read_seq: &DnaString, _allowed_mismatches: usize) -> Option<(Vec<u32>, usize, usize, usize)> {
         // convert read into canonical k-mer u64s (utils::kmers_to_u64_vec must match exporter encoding)
@@ -160,28 +350,32 @@ impl IndexLike for WasmRuntimeIndex {
             return None;
         }
 
-        // collect node ids hit by kmers
-        let mut nodes: Vec<usize> = Vec::with_capacity(kmers.len());
+        // collect node_eq ids hit by kmers (node -> eq_id)
+        let mut eq_ids: Vec<u32> = Vec::with_capacity(kmers.len());
         for k in kmers.iter() {
             if let Some((node_id, _offset)) = self.lookup.get(k) {
-                nodes.push(*node_id as usize);
+                let node_idx = *node_id as usize;
+                if let Some(&eqid) = self.node_eq.get(node_idx) {
+                    eq_ids.push(eqid);
+                }
             }
         }
-        if nodes.is_empty() {
+        if eq_ids.is_empty() {
             return None;
         }
 
-        // start with eq-class of first node, intersect with others
-        let mut eq = match self.eq_classes.get(nodes[0]) {
+        // Start with eq-class of first eq_id, then intersect with others
+        let first_eqid = eq_ids[0] as usize;
+        let mut eq = match self.eq_classes.get(first_eqid) {
             Some(v) => v.clone(),
             None => return None,
         };
-        // dedupe & sort to ensure retain/intersect works
+        // ensure sorted & dedup for intersection correctness
         eq.sort_unstable();
         eq.dedup();
 
-        for &n in nodes.iter().skip(1) {
-            if let Some(other) = self.eq_classes.get(n) {
+        for &eid in eq_ids.iter().skip(1) {
+            if let Some(other) = self.eq_classes.get(eid as usize) {
                 let other_set: HashSet<u32> = other.iter().cloned().collect();
                 eq.retain(|x| other_set.contains(x));
                 if eq.is_empty() {
@@ -192,8 +386,17 @@ impl IndexLike for WasmRuntimeIndex {
             }
         }
 
-        // return (eq_class, number_of_kmers_matched, mismatches_placeholder, read_length)
-        Some((eq, nodes.len(), 0usize, read_seq.len()))
+        // coverage = number of kmers that matched (eq_ids.len())
+        let coverage = eq_ids.len();
+        let mismatches = 0usize; // simple placeholder; keep native mismatch logic outside wasm shim
+        let readlen = read_seq.len();
+
+        // Some((eq, coverage, mismatches, readlen))
+         // final normalize the eq vector to ensure stable ordering for downstream comparisons
+        let mut eq_final = eq;
+        eq_final.sort_unstable();
+        eq_final.dedup();
+        Some((eq_final, coverage, mismatches, readlen))
     }
 
     fn tx_names(&self) -> &Vec<String> {
@@ -222,6 +425,13 @@ pub fn export_wasm_index<K: Kmer>(al: &Pseudoaligner<K>) -> WasmIndex {
         }
     }
 
+    // Build node -> eq_id mapping
+    let mut node_eq = Vec::with_capacity(al.dbg.len());
+    for n in al.dbg.iter_nodes() {
+        let eqid = n.data();
+        node_eq.push(*eqid as u32);
+    }
+
     WasmIndex {
         k: klen,
         kmers,
@@ -229,6 +439,7 @@ pub fn export_wasm_index<K: Kmer>(al: &Pseudoaligner<K>) -> WasmIndex {
         tx_names: al.tx_names.clone(),
         tx_gene_map: al.tx_gene_mapping.clone(),
         gene_length_map: al.gene_length_mapping.clone(),
+         node_eq,
     }
 }
 
@@ -274,19 +485,28 @@ pub struct WasmRuntimeIndex {
     pub tx_names: Vec<String>,
     pub tx_gene_map: HashMap<String, String>,
     pub gene_length_map: HashMap<String, usize>,
+    pub node_eq: Vec<u32>
 }
 
 impl WasmRuntimeIndex {
     pub fn from_wasm_index(idx: WasmIndex) -> Self {
         let lookup = idx.kmers.into_iter().map(|(kmer, node, offset)| (kmer, (node, offset)))
     .collect::<HashMap<u64, (u32, u32)>>();
+
+     let mut eqs = idx.eq_classes;
+        for v in eqs.iter_mut() {
+           v.sort_unstable();
+            v.dedup();
+        }
+
         WasmRuntimeIndex {
             k: idx.k,
             lookup,
-            eq_classes: idx.eq_classes,
+            eq_classes: eqs,
             tx_names: idx.tx_names,
             tx_gene_map: idx.tx_gene_map,
             gene_length_map: idx.gene_length_map,
+            node_eq: idx.node_eq
         }
     }
 
