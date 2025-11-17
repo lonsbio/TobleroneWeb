@@ -544,8 +544,9 @@ pub fn match_read(optional: Option<(Vec<u32>, usize, usize,usize)>, seq: &String
 
 	match optional {
         	Some((eq_class,coverage,mismatches,readlen)) => {
-                                    if coverage >= seq.len() && mismatches <= mismatchsize &&  eq_class.len() == 1 {
-                                    //if coverage >= READ_COVERAGE_THRESHOLD && eq_class.len() == 1 {
+                                    //if coverage >= seq.len() && mismatches <= mismatchsize &&  eq_class.len() == 1 {
+                                   //TODO THIS WAS CHANGED FOR WASM TESTING
+                                     if coverage >= READ_COVERAGE_THRESHOLD && eq_class.len() == 1 {
                                         debug!("{:?}",&seq);
                                       if trim { // trim check
 
@@ -873,10 +874,10 @@ info!("Spawning {} threads for Mapping.\n", num_threads);
         let mut frequency: HashMap<&str, u32> = HashMap::new();
         let mut strandfrequency: HashMap<String, u32> = HashMap::new();
 
-
-
+   // info!("TX MAP");
 
         for eq_class in rx.iter() {
+
             match eq_class {
                 None => {
                     dead_thread_count += 1;
@@ -893,17 +894,24 @@ info!("Spawning {} threads for Mapping.\n", num_threads);
                         break;
                     }
                 }
-                Some((None,_)) => { },
+                Some((None,_)) => { 
+
+                },
                 Some((Some(read_data),strand)) => {
                     //println!("{:?}", read_data);
                     //println!("Strand:{:?}", strand);
                    *strandfrequency.entry(strand.to_string()).or_insert(0) += 1;
+                        
+                  //  info!("Read made it here {:?}", read_data);
+                   
 
                     if read_data.0 {
                         mapped_read_counter += 1;
 
                          // read mapped to unqiue ec
                          if read_data.1 {
+                                                  //  info!("and here {:?}", read_data.0);
+
                    *frequency.entry(&index.tx_names()[read_data.3[0] as usize]).or_insert(0) += 1;
 
 
