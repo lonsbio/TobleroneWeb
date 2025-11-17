@@ -633,6 +633,7 @@ pub fn process_reads<K: Kmer + Sync + Send>(
     trimsize: usize,
     mismatchsize: usize,
     read_length: Option<usize>,
+    flag_wasm: bool
 ) -> Result<(), Error> {
     info!("Done Reading index");
     info!("Starting Multi-threaded Mapping");
@@ -651,9 +652,6 @@ pub fn process_reads<K: Kmer + Sync + Send>(
 	Box::new(std::io::stdout()) as Box<dyn Write>
 	},
     };
-
-
-
 
     let (tx, rx) = mpsc::sync_channel(num_threads);
 
@@ -676,6 +674,189 @@ pub fn process_reads<K: Kmer + Sync + Send>(
 
 
     info!("Spawning {} threads for Mapping.\n", num_threads);
+    //if flag_wasm { // make this the test later, for now use threads so can compare wasm modes
+    if num_threads == 0 {
+            info!("wasm mode no threads.\n");
+               // Single-threaded WASM mode: iterate readers directly and perform the same
+        // mapping & aggregation logic as the threaded receiver would do.
+        info!("WASM flag set: running single-threaded mapping");
+
+        let mut read_counter: usize = 0;
+        let mut mapped_read_counter: usize = 0;
+        let mut trimmed_read_counter: usize = 0;
+        let mut avg_read_length = read_length_arg;
+        let mut frequency: HashMap<&str, u32> = HashMap::new();
+        let mut strandfrequency: HashMap<String, u32> = HashMap::new();
+
+        if is_paired {
+            // consume the paired reader
+            let reader_r2 = match reader_pair {
+                Some(r2) => r2,
+                None => panic!("paired reader missing"),
+            };
+            let mut iter1 = reader.records();
+            let mut iter2 = reader_r2.records();
+
+            loop {
+                match (iter1.next(), iter2.next()) {
+                    (Some(Ok(r1)), Some(Ok(r2))) => {
+                        if trim && trimsize > &r1.seq().len() / 2 {
+                            error!(
+                                "Trimsize {:?} too long, entire sequence trimmed for read {:?}",
+                                trimsize,
+                                &r1.id()
+                            );
+                            break;
+                        }
+
+                        let compared_read_data = match_strands(&r1, trim, trimsize, mismatchsize, index);
+                        let compared_read_data_r2 =
+                            match_strands(&r2, trim, trimsize, mismatchsize, index);
+
+                        let selected_read = match (compared_read_data, compared_read_data_r2) {
+                            (None, None) => None,
+                            (None, Some((None, _))) => None,
+                            (Some((None, _)), None) => None,
+                            (Some((None, _)), Some((None, _))) => None,
+                            (Some((Some(read), strandinfo)), Some((None, _))) => {
+                                Some((Some(read), strandinfo))
+                            }
+                            (Some((Some(read), strandinfo)), None) => Some((Some(read), strandinfo)),
+                            (None, Some((Some(read2), strandinfo2))) => {
+                                Some((Some(read2), strandinfo2))
+                            }
+                            (Some((None, _)), Some((Some(read2), strandinfo2))) => {
+                                Some((Some(read2), strandinfo2))
+                            }
+                            (Some((Some((mapped, unique, transcript, eq_class, coverage, mismatches, is_trimmed, readlen)), _strandinfo)),
+                             Some((Some((mapped2, unique2, transcript2, eq_class2, coverage2, mismatches2, is_trimmed2, readlen2)), _strandinfo2))) => {
+                                if eq_class == eq_class2 {
+                                    if is_trimmed {
+                                        Some((Some((mapped, unique, transcript, eq_class, coverage, mismatches, is_trimmed, readlen)), "from R1 and R2".to_string()))
+                                    } else {
+                                        Some((Some((mapped2, unique2, transcript2, eq_class2, coverage2, mismatches2, is_trimmed2, readlen2)), "from R1 and R2".to_string()))
+                                    }
+                                } else {
+                                    if is_trimmed && is_trimmed2 {
+                                        Some((Some((mapped, unique, transcript, eq_class, coverage, mismatches, is_trimmed, readlen)), "from R1 and R2".to_string()))
+                                    } else if is_trimmed {
+                                        Some((Some((mapped, unique, transcript, eq_class, coverage, mismatches, is_trimmed, readlen)), "from R1".to_string()))
+                                    } else if is_trimmed2 {
+                                        Some((Some((mapped2, unique2, transcript2, eq_class2, coverage2, mismatches2, is_trimmed2, readlen2)), "from R2".to_string()))
+                                    } else if eq_class.len() == 0 {
+                                        Some((Some((mapped2, unique2, transcript2, eq_class2, coverage2, mismatches2, is_trimmed2, readlen2)), "from R2".to_string()))
+                                    } else if eq_class2.len() == 0 {
+                                        Some((Some((mapped, unique, transcript, eq_class, coverage, mismatches, is_trimmed, readlen)), "from R1".to_string()))
+                                    } else if eq_class.len() > eq_class2.len() {
+                                        Some((Some((mapped2, unique2, transcript2, eq_class2, coverage2, mismatches2, is_trimmed2, readlen2)), "from R2".to_string()))
+                                    } else {
+                                        Some((Some((mapped, unique, transcript, eq_class, coverage, mismatches, is_trimmed, readlen)), "from R1".to_string()))
+                                    }
+                                }
+                            }
+                        };
+
+                        if let Some((Some(read_data), strand)) = selected_read {
+                            *strandfrequency.entry(strand.to_string()).or_insert(0) += 1;
+                            if read_data.0 {
+                                mapped_read_counter += 1;
+                                if read_data.1 {
+                                    *frequency.entry(&index.tx_names()[read_data.3[0] as usize]).or_insert(0) += 1;
+                                } else if read_data.6 {
+                                    trimmed_read_counter += 1;
+                                }
+                            }
+                            read_counter += 1;
+                            if check_read {
+                                avg_read_length += read_data.7
+                            }
+                        }
+                    }
+                    _ => break,
+                }
+            }
+        } else {
+            for result in reader.records() {
+                let record = match result {
+                    Ok(r) => r,
+                    Err(err) => panic!("Error {:?} in reading fastq", err),
+                };
+                if trim && trimsize > &record.seq().len() / 2 {
+                    error!(
+                        "Trimsize {:?} too long, entire sequence trimmed for read {:?}",
+                        trimsize,
+                        &record.id()
+                    );
+                    break;
+                }
+                let compared_read_data = match_strands(&record, trim, trimsize, mismatchsize, index);
+                if let Some((Some(read_data), strand)) = compared_read_data {
+                    *strandfrequency.entry(strand.to_string()).or_insert(0) += 1;
+                    if read_data.0 {
+                        mapped_read_counter += 1;
+                        if read_data.1 {
+                            *frequency.entry(&index.tx_names()[read_data.3[0] as usize]).or_insert(0) += 1;
+                        } else if read_data.6 {
+                            trimmed_read_counter += 1;
+                        }
+                    }
+                    read_counter += 1;
+                    if check_read {
+                        avg_read_length += read_data.7
+                    }
+                }
+            }
+        }
+
+        // finalize same as threaded receiver
+        let mut unique_counter: u32 = 0;
+        for (_key, value) in &frequency {
+            unique_counter = unique_counter + value
+        }
+        info!("Processed reads: {}", read_counter);
+        info!("Unique  reads: {}", unique_counter);
+        if trim {
+            info!("Unique rejected reads: {}", trimmed_read_counter)
+        } else {
+            info!("Unique rejected reads: not run")
+        };
+        info!(
+            "Shared reads: {}",
+            mapped_read_counter - (unique_counter as usize) - trimmed_read_counter
+        );
+        info!("Mapped reads: {}", mapped_read_counter);
+        info!("Unmapped reads: {}", read_counter - mapped_read_counter);
+        for (key, value) in &strandfrequency {
+            info!("Mapped {} reads: {}", key, value);
+        }
+
+        let average_read_length = if check_read {
+            avg_read_length / read_counter
+        } else {
+            read_length_arg
+        };
+        let read_mult = if is_paired { 2 * average_read_length } else { average_read_length };
+
+        for trans in index.tx_names() {
+            if trans.contains("del") {
+                if !frequency.contains_key(&trans as &str) {
+                    frequency.insert(&trans as &str, 0);
+                }
+            }
+        }
+
+        writeln!(output_file, "Gene,Deletion,Count,Total,GeneLength,ReadLength,ScaleFactor,Proportion,ScaledProportion");
+        for key in &frequency.keys().sorted() {
+            let value = &frequency[&key as &str];
+            let gene_id = &index.tx_gene_mapping().get(&key.to_string()).unwrap();
+            let gene_length = &index.gene_length_mapping().get(&gene_id.to_string()).unwrap();
+            let prop = *value as f32 / mapped_read_counter as f32;
+            let scalefactor = (read_mult as f32 / (**gene_length as f32));
+            let scaleprop = prop / scalefactor;
+            writeln!(output_file, "{},{},{},{},{},{},{},{},{}", gene_id, key, value, mapped_read_counter, gene_length, average_read_length, scalefactor, prop, scaleprop);
+        }
+    } else {
+
     scope(|scope| {
 
 		if is_paired {
@@ -1000,6 +1181,8 @@ info!("Spawning {} threads for Mapping.\n", num_threads);
         //println!("gene map {:?}",&index.tx_gene_mapping);
     })
     .unwrap(); //end crossbeam
+
+}
 
     eprintln!();
 

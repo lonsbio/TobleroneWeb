@@ -378,11 +378,11 @@ if args.flag_trim_size <= args.flag_mismatch {
         let reads = fastq::Reader::from_file(args.arg_reads_fastq)?;
     if args.arg_reads_pair_fastq == ""  {
         info!("Single end reads provided");
-        process_reads::<config::KmerType>(reads,None, &*index_box, args.flag_output, args.flag_num_threads,!args.flag_skip_trim,args.flag_trim_size,args.flag_mismatch,args.flag_read_length)?;
+        process_reads::<config::KmerType>(reads,None, &*index_box, args.flag_output, args.flag_num_threads,!args.flag_skip_trim,args.flag_trim_size,args.flag_mismatch,args.flag_read_length,args.flag_wasm)?;
     } else {
         info!("Paired end reads provided");
         let reads_pair = fastq::Reader::from_file(args.arg_reads_pair_fastq)?;
-        process_reads::<config::KmerType>(reads,Some(reads_pair), &*index_box, args.flag_output, args.flag_num_threads,!args.flag_skip_trim,args.flag_trim_size,args.flag_mismatch,args.flag_read_length)?;
+        process_reads::<config::KmerType>(reads,Some(reads_pair), &*index_box, args.flag_output, args.flag_num_threads,!args.flag_skip_trim,args.flag_trim_size,args.flag_mismatch,args.flag_read_length,args.flag_wasm)?;
     }
 
 
