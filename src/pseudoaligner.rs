@@ -675,7 +675,7 @@ pub fn process_reads<K: Kmer + Sync + Send>(
 
     info!("Spawning {} threads for Mapping.\n", num_threads);
     //if flag_wasm { // make this the test later, for now use threads so can compare wasm modes
-    if num_threads == 0 {
+    if num_threads == 1 && flag_wasm {
             info!("wasm mode no threads.\n");
                // Single-threaded WASM mode: iterate readers directly and perform the same
         // mapping & aggregation logic as the threaded receiver would do.
