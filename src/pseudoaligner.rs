@@ -713,6 +713,9 @@ pub fn process_reads<K: Kmer + Sync + Send>(
                         let compared_read_data_r2 =
                             match_strands(&r2, trim, trimsize, mismatchsize, index);
 
+               eprintln!("match strands returns");
+                std::process::exit(0);
+
                         let selected_read = match (compared_read_data, compared_read_data_r2) {
                             (None, None) => None,
                             (None, Some((None, _))) => None,
@@ -810,7 +813,7 @@ pub fn process_reads<K: Kmer + Sync + Send>(
 
                eprintln!("MADE IT OUT OF LOOP");
 
-    std::process::exit(0);
+  
 
         // finalize same as threaded receiver
         let mut unique_counter: u32 = 0;
