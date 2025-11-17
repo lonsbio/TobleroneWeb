@@ -676,7 +676,6 @@ pub fn process_reads<K: Kmer + Sync + Send>(
     //if flag_wasm { // make this the test later, for now use threads so can compare wasm modes
     if num_threads == 1 && flag_wasm {
           eprintln!("ENTERED WASM SINGLE THREAD BRANCH");
-    std::process::exit(0);
             info!("wasm mode no threads.\n");
                // Single-threaded WASM mode: iterate readers directly and perform the same
         // mapping & aggregation logic as the threaded receiver would do.
@@ -808,6 +807,10 @@ pub fn process_reads<K: Kmer + Sync + Send>(
                 }
             }
         }
+
+               eprintln!("MADE IT OUT OF LOOP");
+
+    std::process::exit(0);
 
         // finalize same as threaded receiver
         let mut unique_counter: u32 = 0;
