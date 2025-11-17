@@ -144,8 +144,8 @@ const indexpaths = await CLI.mount([
     const res = await CLI.exec(`tinyt map --num-threads=1 -i ${indexpaths[0]} test.fq`);
     show(out, `tinyt map --num-threads=1 -i ${indexpaths[0]} test.fq`, res);
 
-	      const res2 = await CLI.exec(`tinyt map --num-threads=1 -i ${indexpaths[0]} test.fq`);
-    show(help2, `tinyt map --num-threads=2 -i ${indexpaths[0]} test.fq`, res2);
+	   //    const res2 = await CLI.exec(`tinyt map --num-threads=1 -i ${indexpaths[0]} test.fq`);
+    // show(help2, `tinyt map --num-threads=2 -i ${indexpaths[0]} test.fq`, res2);
 	  
 
   } catch (e) {
