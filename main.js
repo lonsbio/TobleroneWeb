@@ -5,6 +5,9 @@ const ABS_BASE = new URL(import.meta.env.BASE_URL, location.origin).href;
 document.addEventListener("DOMContentLoaded", async () => {
   const out  = document.getElementById("output");
   const help = document.getElementById("output_help");
+ const help2 = document.getElementById("outputhelp");
+
+	
   const show = (el, label, r) => {
     const o = typeof r === "string" ? { stdout: r } : (r || {});
     el.textContent += `\n# ${label}\nSTDOUT:\n${o.stdout ?? ""}\nSTDERR:\n${o.stderr ?? ""}\n(code=${o.code ?? "?"})\n`;
@@ -140,6 +143,10 @@ const indexpaths = await CLI.mount([
     // run your command (note: -i argument must match the mounted filename)
     const res = await CLI.exec(`tinyt map --num-threads=1 -i ${indexpaths[0]} test.fq`);
     show(out, `tinyt map --num-threads=1 -i ${indexpaths[0]} test.fq`, res);
+
+	      const res2 = await CLI.exec(`tinyt map --num-threads=1 -i ${indexpaths[0]} test.fq`);
+    show(help2, `tinyt map --num-threads=2 -i ${indexpaths[0]} test.fq`, res2);
+	  
 
   } catch (e) {
     (out || document.body).textContent = "Error: " + (e?.message || e);
