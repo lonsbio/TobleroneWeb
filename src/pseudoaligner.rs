@@ -673,9 +673,10 @@ pub fn process_reads<K: Kmer + Sync + Send>(
 
 
 
-    info!("Spawning {} threads for Mapping.\n", num_threads);
     //if flag_wasm { // make this the test later, for now use threads so can compare wasm modes
     if num_threads == 1 && flag_wasm {
+          eprintln!("ENTERED WASM SINGLE THREAD BRANCH");
+    std::process::exit(0);
             info!("wasm mode no threads.\n");
                // Single-threaded WASM mode: iterate readers directly and perform the same
         // mapping & aggregation logic as the threaded receiver would do.
@@ -856,6 +857,8 @@ pub fn process_reads<K: Kmer + Sync + Send>(
             writeln!(output_file, "{},{},{},{},{},{},{},{},{}", gene_id, key, value, mapped_read_counter, gene_length, average_read_length, scalefactor, prop, scaleprop);
         }
     } else {
+
+
 
     scope(|scope| {
 
