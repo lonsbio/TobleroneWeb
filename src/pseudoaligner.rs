@@ -713,8 +713,6 @@ pub fn process_reads<K: Kmer + Sync + Send>(
                         let compared_read_data_r2 =
                             match_strands(&r2, trim, trimsize, mismatchsize, index);
 
-               eprintln!("match strands returns");
-                std::process::exit(0);
 
                         let selected_read = match (compared_read_data, compared_read_data_r2) {
                             (None, None) => None,
@@ -758,6 +756,11 @@ pub fn process_reads<K: Kmer + Sync + Send>(
                                 }
                             }
                         };
+
+
+                        eprintln!("selected_read returns");
+                        std::process::exit(0);
+
 
                         if let Some((Some(read_data), strand)) = selected_read {
                             *strandfrequency.entry(strand.to_string()).or_insert(0) += 1;
