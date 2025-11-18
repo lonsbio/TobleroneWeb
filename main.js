@@ -163,10 +163,10 @@ const blobIndex = await CLI.mount([{
 
     // run your command (note: -i argument must match the mounted filename)
     const res = await CLI.exec(`tinyt map --num-threads=1 -i ${indexpaths[0]} test.fq`);
-    show(out, `tinyt map --num-threads=1 --index ${blobIndex[0]} ${blobIndex[1]} ${blobIndex[2]}`, res);
+    show(out, `tinyt map --num-threads=1 --index ${blobIndex[0]} ${blobIndex[1]}`, res);
 
-	   //    const res2 = await CLI.exec(`tinyt map --num-threads=1 -i ${indexpaths[0]} test.fq`);
-    // show(help2, `tinyt map --num-threads=2 --index ${blobIndex[0]} ${blobIndex[1]} ${blobIndex[2]}`, res2);
+	      const res2 = await CLI.exec(`tinyt map --num-threads=1 -i ${indexpaths[0]} test.fq`);
+    show(help2, `tinyt map --num-threads=2 --index ${blobIndex[0]} ${blobIndex[1]} ${blobIndex[2]}`, res2);
 	  
 
   } catch (e) {
