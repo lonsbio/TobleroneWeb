@@ -88,9 +88,13 @@ fn main() -> Result<(), Error> {
      if env::var_os("RUST_LOG").is_none() {                                                                                                                                                                                                                                      
        env::set_var("RUST_LOG", "tinyt=info");                                                                                                                                                                                                                             
      }   
-    pretty_env_logger::init_timed();
+   
 
-    
+     // ignore when multiple BioWaasm error 
+   //  pretty_env_logger::init_timed();
+    let _ = pretty_env_logger::try_init_timed();
+
+
 
 	if args.flag_version || args.flag_v {
         println! {"{} {}", PKG_NAME, PKG_VERSION};
