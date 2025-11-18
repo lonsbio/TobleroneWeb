@@ -685,7 +685,10 @@ pub fn process_reads<K: Kmer + Sync + Send>(
         let mut mapped_read_counter: usize = 0;
         let mut trimmed_read_counter: usize = 0;
         let mut avg_read_length = read_length_arg;
-        let mut frequency: HashMap<&str, u32> = HashMap::new();
+        //to fix threads issue on WASM
+        //let mut frequency: HashMap<&str, u32> = HashMap::new();
+        let mut frequency: HashMap<String, u32> = HashMap::new();
+
         let mut strandfrequency: HashMap<String, u32> = HashMap::new();
 
         if is_paired {
@@ -758,8 +761,8 @@ pub fn process_reads<K: Kmer + Sync + Send>(
                         };
 
 
-                        eprintln!("selected_read returns");
-                        std::process::exit(0);
+                        //eprintln!("selected_read returns");
+                        // std::process::exit(0);
 
 
                         if let Some((Some(read_data), strand)) = selected_read {
@@ -767,7 +770,12 @@ pub fn process_reads<K: Kmer + Sync + Send>(
                             if read_data.0 {
                                 mapped_read_counter += 1;
                                 if read_data.1 {
-                                    *frequency.entry(&index.tx_names()[read_data.3[0] as usize]).or_insert(0) += 1;
+                                 //   *frequency.entry(&index.tx_names()[read_data.3[0] as usize]).or_insert(0) += 1;
+                                    *frequency
+   .entry(index.tx_names()[read_data.3[0] as usize].clone())
+   .or_insert(0)
+   += 1;
+
                                 } else if read_data.6 {
                                     trimmed_read_counter += 1;
                                 }
@@ -801,7 +809,7 @@ pub fn process_reads<K: Kmer + Sync + Send>(
                     if read_data.0 {
                         mapped_read_counter += 1;
                         if read_data.1 {
-                            *frequency.entry(&index.tx_names()[read_data.3[0] as usize]).or_insert(0) += 1;
+                            *frequency.entry(index.tx_names()[read_data.3[0] as usize].clone()).or_insert(0) += 1;
                         } else if read_data.6 {
                             trimmed_read_counter += 1;
                         }
@@ -850,7 +858,7 @@ pub fn process_reads<K: Kmer + Sync + Send>(
         for trans in index.tx_names() {
             if trans.contains("del") {
                 if !frequency.contains_key(&trans as &str) {
-                    frequency.insert(&trans as &str, 0);
+                    frequency.insert((&trans as &str).to_string(), 0);
                 }
             }
         }
