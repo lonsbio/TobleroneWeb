@@ -134,6 +134,27 @@ const indexpaths = await CLI.mount([
 ]);
 
 
+	  
+
+let blob = await fetch("https://lonsbio.github.io/TobleroneWeb/compiletest.idx.wasm.idx").then(r => r.blob());
+
+let r1 = await fetch("https://lonsbio.github.io/TobleroneWeb/paired_ikzf_del47_R1.fastq").then(r => r.blob());
+
+let r2 = await fetch("https://lonsbio.github.io/TobleroneWeb/paired_ikzf_del47_R2.fastq").then(r => r.blob());
+
+const blobIndex = await CLI.mount([{
+    name: "filename.txt",
+    data: blob
+},{
+    name: "r1.fastq",
+    data: r1
+},{
+    name: "r2.fastq",
+    data: r2
+}]);
+
+	  
+
 
     // run tinyt; these WILL produce output
     show(help, "tinyt --version", await CLI.exec("tinyt --version"));
@@ -142,10 +163,10 @@ const indexpaths = await CLI.mount([
 
     // run your command (note: -i argument must match the mounted filename)
     const res = await CLI.exec(`tinyt map --num-threads=1 -i ${indexpaths[0]} test.fq`);
-    show(out, `tinyt map --num-threads=1 -i ${indexpaths[0]} test.fq`, res);
+    show(out, `tinyt map --num-threads=1 --index ${blobIndex[0]} ${blobIndex[1]} ${blobIndex[2]}`, res);
 
 	   //    const res2 = await CLI.exec(`tinyt map --num-threads=1 -i ${indexpaths[0]} test.fq`);
-    // show(help2, `tinyt map --num-threads=2 -i ${indexpaths[0]} test.fq`, res2);
+    // show(help2, `tinyt map --num-threads=2 --index ${blobIndex[0]} ${blobIndex[1]} ${blobIndex[2]}`, res2);
 	  
 
   } catch (e) {
