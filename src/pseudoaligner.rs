@@ -673,9 +673,9 @@ pub fn process_reads<K: Kmer + Sync + Send>(
 
 
 
-    info!("Spawning {} threads for Mapping.\n", num_threads);
     //if flag_wasm { // make this the test later, for now use threads so can compare wasm modes
-    if num_threads == 0 {
+    if num_threads == 1 && flag_wasm {
+          eprintln!("ENTERED WASM SINGLE THREAD BRANCH");
             info!("wasm mode no threads.\n");
                // Single-threaded WASM mode: iterate readers directly and perform the same
         // mapping & aggregation logic as the threaded receiver would do.
@@ -712,6 +712,7 @@ pub fn process_reads<K: Kmer + Sync + Send>(
                         let compared_read_data = match_strands(&r1, trim, trimsize, mismatchsize, index);
                         let compared_read_data_r2 =
                             match_strands(&r2, trim, trimsize, mismatchsize, index);
+
 
                         let selected_read = match (compared_read_data, compared_read_data_r2) {
                             (None, None) => None,
@@ -755,6 +756,11 @@ pub fn process_reads<K: Kmer + Sync + Send>(
                                 }
                             }
                         };
+
+
+                        eprintln!("selected_read returns");
+                        std::process::exit(0);
+
 
                         if let Some((Some(read_data), strand)) = selected_read {
                             *strandfrequency.entry(strand.to_string()).or_insert(0) += 1;
@@ -808,6 +814,10 @@ pub fn process_reads<K: Kmer + Sync + Send>(
             }
         }
 
+               eprintln!("MADE IT OUT OF LOOP");
+
+  
+
         // finalize same as threaded receiver
         let mut unique_counter: u32 = 0;
         for (_key, value) in &frequency {
@@ -856,6 +866,8 @@ pub fn process_reads<K: Kmer + Sync + Send>(
             writeln!(output_file, "{},{},{},{},{},{},{},{},{}", gene_id, key, value, mapped_read_counter, gene_length, average_read_length, scalefactor, prop, scaleprop);
         }
     } else {
+
+
 
     scope(|scope| {
 
